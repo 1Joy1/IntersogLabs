@@ -15,11 +15,19 @@ use Yii;
  * @property string $phone
  * @property string $modified_at
  * @property string $created_at
+ * @property string $access_token
  *
+ * @property AlbumClients $albumClients
  * @property Albums[] $albums
+ * @property Orders[] $orders
+ * @property UserPackages[] $userPackages
  */
-class Users extends \yii\db\ActiveRecord
+class Users extends \yii\db\ActiveRecord implements \yii\web\IdentityInterface
 {
+    const ROLE_CLIENT = 'client';
+    const ROLE_PHOTOGRAPHER = 'photographer';
+    const ROLE_ADMIN = 'admin';
+    
     /**
      * @inheritdoc
      */
@@ -28,6 +36,41 @@ class Users extends \yii\db\ActiveRecord
         return 'users';
     }
 
+
+   /* public static function findOne($auth)
+    {
+        var_dump($_SERVER);
+        var_dump($auth);
+    }*/
+    
+    
+    // Реализуем IdentityInterface
+    public static function findIdentity($id)
+    {
+        return static::findOne($id);
+    }
+
+    public static function findIdentityByAccessToken($token, $type = null)
+    {
+        return static::findOne(['access_token' => $token]);
+    }
+
+    public function getId()
+    {
+        return $this->id;
+    }
+
+    public function getAuthKey()
+    {
+        return $this->authKey;
+    }
+
+    public function validateAuthKey($authKey)
+    {
+        return $this->authKey === $authKey;
+    }
+  
+    
     /**
      * @inheritdoc
      */
@@ -39,6 +82,7 @@ class Users extends \yii\db\ActiveRecord
             [['modified_at', 'created_at'], 'safe'],
             [['name', 'username', 'password'], 'string', 'max' => 50],
             [['phone'], 'string', 'max' => 15],
+            [['access_token'], 'string', 'max' => 64], 
             [['username'], 'unique'],
         ];
     }
@@ -57,7 +101,16 @@ class Users extends \yii\db\ActiveRecord
             'phone' => 'Phone',
             'modified_at' => 'Modified At',
             'created_at' => 'Created At',
+            'access_token' => 'Access Token',
         ];
+    }
+
+    /**
+     * @return \yii\db\ActiveQuery
+     */
+    public function getAlbumClients()
+    {
+        return $this->hasOne(AlbumClients::className(), ['users_id' => 'id']);
     }
 
     /**
@@ -65,6 +118,22 @@ class Users extends \yii\db\ActiveRecord
      */
     public function getAlbums()
     {
-        return $this->hasMany(Albums::className(), ['user' => 'id']);
+        return $this->hasMany(Albums::className(), ['users_id' => 'id']);
+    }
+
+    /**
+     * @return \yii\db\ActiveQuery
+     */
+    public function getOrders()
+    {
+        return $this->hasMany(Orders::className(), ['users_id' => 'id']);
+    }
+
+    /**
+     * @return \yii\db\ActiveQuery
+     */
+    public function getUserPackages()
+    {
+        return $this->hasMany(UserPackages::className(), ['users_id' => 'id']);
     }
 }

@@ -2,66 +2,87 @@
 
 namespace app\controllers;
 
-use yii\rest\Controller;
-use yii\rest\ActiveController;
-use app\controllers\SearchActiveController;
-use yii\helpers\ArrayHelper;
-use yii\web\BadRequestHttpException;
-use yii\filters\auth\HttpBearerAuth;
-use yii\filters\AccessControl;
-use app\controllers\AccessRule;
-use app\models\Users;
 
-class UsersController extends SearchActiveController
+use app\controllers\CommonActiveController;
+use yii\filters\AccessControl;
+
+
+class UsersController extends CommonActiveController
 {
     public $modelClass = 'app\models\Users';
 
+    public $searchAttr = 'UsersSearch';
+    
+    public $searchModel = '\app\models\UsersSearch';
     
     public function behaviors()
     {
-        $behaviors = parent::behaviors();
-        $behaviors['authenticator']['class'] = HttpBearerAuth::className();
+        $behaviors = parent::behaviors();        
         $behaviors['access'] = [
             'class' => AccessControl::className(),
             'ruleConfig' => ['class' => AccessRules::className(),],
-            'only' => ['create', 'update', 'delete'],
+            'only' => ['index', 'view', 'create', 'update', 'delete'],
             'rules' => [
+                [
+                    'actions' => ['index'],
+                    'allow' => true,
+                     // Allow admin to index
+                    'roles' => ['admin'],
+                ],
+                
+                [
+                    'actions' => ['view'],
+                    'allow' => true,
+                    // Allow client, photographer and admin to view
+                    'roles' => ['admin', 'photographer', 'client'],
+                    // Admin full allow, other some allow.
+                    'matchCallback' => function ($rule, $action)
+                    {
+                        if (\Yii::$app->user->identity->role === 'admin' || 
+                            \Yii::$app->user->identity->id === \Yii::$app->request->queryParams['id']) {
+                            return true;
+                        }
+                    }
+                ],
+                
                 [
                     'actions' => ['create'],
                     'allow' => true,
-                     // Allow client, photographer and admin to create
-                    'roles' => [
-                        Users::ROLE_CLIENT,
-                        Users::ROLE_PHOTOGRAPHER,
-                        Users::ROLE_ADMIN],
+                     // Allow admin to create
+                    'roles' => ['admin'],
                 ],
                 
                 [
                     'actions' => ['update'],
                     'allow' => true,
-                    // Allow admin to update
-                    'roles' => [
-                        Users::ROLE_ADMIN,],
+                    // Allow client, photographer and admin to view
+                    'roles' => ['admin', 'photographer', 'client'],
+                    // Admin full allow, other some allow.
+                    'matchCallback' => function ($rule, $action)
+                    {
+                        if (\Yii::$app->user->identity->role === 'admin' || 
+                            \Yii::$app->user->identity->id === \Yii::$app->request->queryParams['id']) {
+                            return true;
+                        }
+                    }
                 ],
                 
                 [
                     'actions' => ['delete'],
                     'allow' => true,
                     // Allow admins to delete
-                    'roles' => [
-                    Users::ROLE_ADMIN ],
+                    'roles' => ['admin', 'photographer', 'client'],
+                    // Admin full allow, other some allow.
+                    'matchCallback' => function ($rule, $action)
+                    {
+                        if (\Yii::$app->user->identity->role === 'admin' || 
+                            \Yii::$app->user->identity->id === \Yii::$app->request->queryParams['id']) {
+                            return true;
+                        }
+                    }
                 ],
             ],
         ];
-        //$behaviors['authenticator']['only'] = ['index'];
-        /*$behaviors['authenticator']['auth'] = function ($username, $password) {
-            return \app\models\Users::findOne([
-                'username' => $username,
-                'password' => $password,
-            ]);
-        };*/
         return $behaviors;
     }
-    
-
 }

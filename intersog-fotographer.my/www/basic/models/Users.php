@@ -43,8 +43,14 @@ class Users extends \yii\db\ActiveRecord implements \yii\web\IdentityInterface
         var_dump($auth);
     }*/
     
+    /* Хелперы */
+    public function setPassword($password)
+    {
+        $this->password = Yii::$app->security->generatePasswordHash($password);
+    }
     
-    // Реализуем IdentityInterface
+    
+    /* Реализуем IdentityInterface Аунтетификация пользователей */
     public static function findIdentity($id)
     {
         return static::findOne($id);
@@ -52,6 +58,7 @@ class Users extends \yii\db\ActiveRecord implements \yii\web\IdentityInterface
 
     public static function findIdentityByAccessToken($token, $type = null)
     {
+        // Тут должны быть Правила валидации и проверки токена
         return static::findOne(['access_token' => $token]);
     }
 
@@ -62,13 +69,14 @@ class Users extends \yii\db\ActiveRecord implements \yii\web\IdentityInterface
 
     public function getAuthKey()
     {
-        return $this->authKey;
+        return $this->auth_key;
     }
 
     public function validateAuthKey($authKey)
     {
-        return $this->authKey === $authKey;
+        return $this->auth_key === $authKey;
     }
+  /* Реализовали IdentityInterface Аунтетификация пользователей */
   
     
     /**
@@ -82,7 +90,8 @@ class Users extends \yii\db\ActiveRecord implements \yii\web\IdentityInterface
             [['modified_at', 'created_at'], 'safe'],
             [['name', 'username', 'password'], 'string', 'max' => 50],
             [['phone'], 'string', 'max' => 15],
-            [['access_token'], 'string', 'max' => 64], 
+            [['access_token'], 'string', 'max' => 64],
+            [['auth_key'], 'string', 'max' => 64],
             [['username'], 'unique'],
         ];
     }
@@ -102,6 +111,7 @@ class Users extends \yii\db\ActiveRecord implements \yii\web\IdentityInterface
             'modified_at' => 'Modified At',
             'created_at' => 'Created At',
             'access_token' => 'Access Token',
+            'auth_key' => 'Auth Key',
         ];
     }
 

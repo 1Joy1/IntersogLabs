@@ -63,10 +63,17 @@ class AlbumsSearch extends Albums
             'modified_at' => $this->modified_at,
             'created_at' => $this->created_at,
         ]);
-
-        $query->andFilterWhere(['like', 'users_id', $this->users_id])
+        if(\Yii::$app->user->identity->role === 'admin'){
+            $query->andFilterWhere(['like', 'users_id', $this->users_id])
+                ->andFilterWhere(['like', 'name', $this->name])
+                ->andFilterWhere(['like', 'active', $this->active]);
+        }
+        if (\Yii::$app->user->identity->role === 'photographer'){
+            $query->andFilterWhere(['like', 'users_id', (string)\Yii::$app->user->identity->id])
             ->andFilterWhere(['like', 'name', $this->name])
             ->andFilterWhere(['like', 'active', $this->active]);
+        }
+        
 
         return $dataProvider;
     }

@@ -1,11 +1,21 @@
 <?php
+use yii\web\Response;
 
 $params = require(__DIR__ . '/params.php');
 
 $config = [
     'id' => 'basic',
     'basePath' => dirname(__DIR__),
-    'bootstrap' => ['log'],
+    'bootstrap' => [
+        [
+            'class' => 'yii\filters\ContentNegotiator',
+            'formats' => [
+                'application/json' => Response::FORMAT_JSON,
+                'application/xml' => Response::FORMAT_XML,
+            ],
+        ],
+        'log',
+    ],
     'components' => [
         'request' => [
             // !!! insert a secret key in the following (if it is empty) - this is required by cookie validation
@@ -21,9 +31,9 @@ $config = [
             'enableAutoLogin' => true,
             'enableSession' => false,   //для не сохранении информац о клиенте
         ],
-        'errorHandler' => [
+        /*'errorHandler' => [
             'errorAction' => 'site/error',
-        ],
+        ],*/
         'mailer' => [
             'class' => 'yii\swiftmailer\Mailer',
             // send all mails to a file by default. You have to set
@@ -48,7 +58,12 @@ $config = [
             'showScriptName' => false,
             'rules' => [
                 ['class' => 'yii\rest\UrlRule', 'controller' => 'users'],
-                ['class' => 'yii\rest\UrlRule', 'controller' => 'albums'],
+                ['class' => 'yii\rest\UrlRule', 'controller' => 'albums', 'extraPatterns' => [
+                    'GET <id:\d+>/images' => 'images',
+                    'POST <id:\d+>/images' => 'add-images',
+                    ],
+                ],
+                //['class' => 'yii\rest\UrlRule', 'controller' => 'album-images'],
             ],
         ],
     ],

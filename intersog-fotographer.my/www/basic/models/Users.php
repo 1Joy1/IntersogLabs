@@ -24,9 +24,18 @@ use Yii;
  */
 class Users extends \yii\db\ActiveRecord implements \yii\web\IdentityInterface
 {
-    const ROLE_CLIENT = 'client';
-    const ROLE_PHOTOGRAPHER = 'photographer';
-    const ROLE_ADMIN = 'admin';
+    
+   /* public function fields()
+    {
+        $fields = parent::fields();
+
+        // удаляем не безопасные поля
+        unset($fields['auth_key']);
+        unset($fields['access_token']);
+        unset($fields['password']);
+
+    return $fields;
+    }*/
     
     /**
      * @inheritdoc
@@ -35,13 +44,6 @@ class Users extends \yii\db\ActiveRecord implements \yii\web\IdentityInterface
     {
         return 'users';
     }
-
-
-   /* public static function findOne($auth)
-    {
-        var_dump($_SERVER);
-        var_dump($auth);
-    }*/
     
     /* Хелперы */
     public function setPassword($password)

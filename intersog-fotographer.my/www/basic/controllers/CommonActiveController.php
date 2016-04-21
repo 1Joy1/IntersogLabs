@@ -21,7 +21,16 @@ class CommonActiveController extends ActiveController
     
     
     public $reservedParams = ['sort','q'];
+    
+    public function isAdmin()
+    {
+        if (\Yii::$app->user->identity->role ==='admin') {
+            return true;
+        }
+    }
+    
 
+    
     public function actions() 
     {
         $actions = parent::actions();
@@ -29,7 +38,7 @@ class CommonActiveController extends ActiveController
         $actions['index']['prepareDataProvider'] = [$this, 'indexDataProvider'];
         return $actions;
     }
-    
+
     public function indexDataProvider() 
     {
         $params = \Yii::$app->request->queryParams;
@@ -55,7 +64,7 @@ class CommonActiveController extends ActiveController
                 if (!in_array(strtolower($key), $this->reservedParams) 
                     && ArrayHelper::keyExists($key, $modelAttr, false)) {
                     $search[$key] = $value;
-                }
+                } else {throw new BadRequestHttpException('Bad Request');}
             }
         }
 

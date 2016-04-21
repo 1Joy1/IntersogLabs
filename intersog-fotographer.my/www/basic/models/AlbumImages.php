@@ -24,6 +24,16 @@ class AlbumImages extends \yii\db\ActiveRecord
     {
         return 'album_images';
     }
+    
+    /*public function fields()
+    {
+        $fields = parent::fields();
+
+        // удаляем не безопасные поля
+        unset($fields['image']);
+
+        return $fields;
+    }*/
 
     /**
      * @inheritdoc

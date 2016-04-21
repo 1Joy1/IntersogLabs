@@ -15,6 +15,13 @@ class UsersController extends CommonActiveController
     
     public $searchModel = '\app\models\UsersSearch';
     
+    public function isOwnerAccount()
+    {
+        if (\Yii::$app->user->identity->id === \Yii::$app->request->queryParams['id']) {
+            return true;
+        }            
+    }
+    
     public function behaviors()
     {
         $behaviors = parent::behaviors();        
@@ -38,8 +45,7 @@ class UsersController extends CommonActiveController
                     // Admin full allow, other some allow.
                     'matchCallback' => function ($rule, $action)
                     {
-                        if (\Yii::$app->user->identity->role === 'admin' || 
-                            \Yii::$app->user->identity->id === \Yii::$app->request->queryParams['id']) {
+                        if ($this -> isAdmin() || $this -> isOwnerAccount()) {
                             return true;
                         }
                     }
@@ -60,8 +66,7 @@ class UsersController extends CommonActiveController
                     // Admin full allow, other some allow.
                     'matchCallback' => function ($rule, $action)
                     {
-                        if (\Yii::$app->user->identity->role === 'admin' || 
-                            \Yii::$app->user->identity->id === \Yii::$app->request->queryParams['id']) {
+                        if ($this -> isAdmin() || $this -> isOwnerAccount()) {
                             return true;
                         }
                     }
@@ -75,8 +80,7 @@ class UsersController extends CommonActiveController
                     // Admin full allow, other some allow.
                     'matchCallback' => function ($rule, $action)
                     {
-                        if (\Yii::$app->user->identity->role === 'admin' || 
-                            \Yii::$app->user->identity->id === \Yii::$app->request->queryParams['id']) {
+                        if ($this -> isAdmin() || $this -> isOwnerAccount()) {
                             return true;
                         }
                     }

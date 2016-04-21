@@ -27,6 +27,11 @@ class Albums extends \yii\db\ActiveRecord
     {
         return 'albums';
     }
+    
+    public function getCarrentUser()
+    {
+        return Yii::$app->user->identity;
+    }
 
     /**
      * @inheritdoc
@@ -34,11 +39,18 @@ class Albums extends \yii\db\ActiveRecord
     public function rules()
     {
         return [
-            [['users_id', 'name'], 'required'],
-            [['users_id', 'active'], 'integer'],
+            [['name'], 'required'],
+            [['users_id', 'active'], 'integer'],            
             [['created_at', 'modified_at'], 'safe'],
             [['name'], 'string', 'max' => 50],
             [['users_id'], 'exist', 'skipOnError' => true, 'targetClass' => Users::className(), 'targetAttribute' => ['users_id' => 'id']],
+            [['users_id'], 'compare', 'compareValue' => $this -> getCarrentUser() -> id, 'operator' => '==', 
+              'when' => function() 
+              { 
+                return Yii::$app->user->identity->role != 'admin'; 
+              }
+            ],
+            [['users_id'], 'default', 'value' => Yii::$app->user->identity->id],
         ];
     }
 

@@ -106,7 +106,7 @@ class AuthController extends ActiveController
     */
     public function actionChangePass()
     {
-        if (!$code = \Yii::$app->request->getbodyParam('code')) {
+        if (!$code = \Yii::$app->request->getbodyParam('reset_code')) {
             throw new BadRequestHttpException('Required reset code. Field code cannot be blank.', 400);
         }
         
@@ -167,6 +167,7 @@ class AuthController extends ActiveController
         }
         
         $response = \Yii::$app->response;
+        $response->getHeaders()->set('resetCode code', $code);
         
         if (!$validCode = \app\models\Auth::find()->where(['code' => $code, 'used' => false])
                                                    ->andWhere(['>', 'valid_time', time()])

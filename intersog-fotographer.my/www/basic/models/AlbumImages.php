@@ -41,11 +41,18 @@ class AlbumImages extends \yii\db\ActiveRecord
     public function rules()
     {
         return [
-            [['albums_id', 'image'], 'required'],
+            [['image'], 'required'],
             [['albums_id'], 'integer'],
             [['image'], 'string'],
             [['created_at'], 'safe'],
             [['albums_id'], 'exist', 'skipOnError' => true, 'targetClass' => Albums::className(), 'targetAttribute' => ['albums_id' => 'id']],
+            [['albums_id'], 'compare', 'compareValue' => Yii::$app->request->queryParams['id'], 'operator' => '==', 
+              /*'when' => function() 
+              { 
+                return Yii::$app->user->identity->role != 'admin'; 
+              }*/
+            ],
+            [['albums_id'], 'default', 'value' => Yii::$app->request->queryParams['id']],
         ];
     }
 

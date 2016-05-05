@@ -3,6 +3,7 @@
 namespace app\models;
 
 use Yii;
+use yii\web\ServerErrorHttpException;
 
 /**
  * This is the model class for table "users".
@@ -10,12 +11,13 @@ use Yii;
  * @property string $id
  * @property string $role
  * @property string $name
- * @property string $username
+ * @property string $email
  * @property string $password
  * @property string $phone
  * @property string $modified_at
  * @property string $created_at
  * @property string $access_token
+ * @property integer $token_timelife 
  *
  * @property AlbumClients $albumClients
  * @property Albums[] $albums
@@ -25,17 +27,21 @@ use Yii;
 class Users extends \yii\db\ActiveRecord implements \yii\web\IdentityInterface
 {
     
-   /* public function fields()
+   /* 
+    public function fields()
     {
         $fields = parent::fields();
 
         // удаляем не безопасные поля
-        unset($fields['auth_key']);
+        unset($fields['token_timelife']);
         unset($fields['access_token']);
         unset($fields['password']);
 
     return $fields;
-    }*/
+    }
+    */
+    
+    
     
     /**
      * @inheritdoc
@@ -45,6 +51,46 @@ class Users extends \yii\db\ActiveRecord implements \yii\web\IdentityInterface
         return 'users';
     }
     
+ 
+    /**
+     * 
+     */
+    public function beforeSave($insert)
+    {
+        if (parent::beforeSave($insert)) {
+            if ($this->isNewRecord) 
+            {
+                $this->setPassword($this->password);
+            }
+            if ($this->isAttributeChanged('password'))
+            {
+                $this->setPassword($this->password);   
+            }
+            return true;
+        } else {
+            return false;
+        }   
+    }
+    
+    
+    /**
+    * 
+    */ 
+    //public static function resetPassword($user, $newPassword)
+    public function resetPassword($newPassword)
+    {
+        $this->password = $newPassword;
+        if ($this->update()) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+    
+   
+    /**
+     * 
+     */    
     /* Хелперы */
     public function setPassword($password)
     {
@@ -52,6 +98,72 @@ class Users extends \yii\db\ActiveRecord implements \yii\web\IdentityInterface
     }
     
     
+    
+    /**
+     * 
+     */    
+    public static function validateUser($email, $password)
+    {
+        $authUser = static::findOne(['email' => $email]);
+        
+        if ( $authUser && $password) {
+            if ($authUser->validatePassword($password)) {
+                if ($authUser->generateAccessToken()) {
+                    return $authUser;
+                }
+            }
+        }
+        return false;        
+    }
+
+    
+    /**
+     * 
+     */    
+    public function validatePassword($password)
+    {
+        return Yii::$app->security->validatePassword($password, $this->password);
+    }
+    
+
+    /**
+     * 
+     */
+    public function generateAccessToken()
+    {
+        $this->access_token = Yii::$app->security->generateRandomString();
+        $this->token_timelife = time();
+        
+        if ( $this->update()) {
+            return true;
+        } else {
+            //return false;
+            throw new ServerErrorHttpException("Тут что то поломалось!!! Срочно бежим к админу с криками <Не могу залогиниться по токену>.");
+        }
+    }
+    
+    
+    /**
+     * 
+     */    
+    public static function resetToken($authUser)
+    {
+        //if ($authUser = static::findIdentityByAccessToken($token)) {
+            $authUser->access_token = '';
+            $authUser->token_timelife = 0;
+        if ($authUser->update()) {
+            return true;
+        } else {
+            //return false;
+            throw new ServerErrorHttpException("Тут что то поломалось!!! Срочно бежим к админу с криками <Не сбрасывается токен>.");
+        }
+    }
+    
+    
+    
+    /**
+     * 
+     */    
     /* Реализуем IdentityInterface Аунтетификация пользователей */
     public static function findIdentity($id)
     {
@@ -60,9 +172,17 @@ class Users extends \yii\db\ActiveRecord implements \yii\web\IdentityInterface
 
     public static function findIdentityByAccessToken($token, $type = null)
     {
-        // Тут должны быть Правила валидации и проверки токена
-        return static::findOne(['access_token' => $token]);
+        if ( $authUser = static::findOne(['access_token' => $token]) ) {
+            if ( (time() - $authUser['token_timelife']) < 6000 ) {
+                return $authUser;            
+            } else {                
+                static::resetToken($authUser);
+            }
+        } else {
+            return false;
+        }
     }
+    
 
     public function getId()
     {
@@ -87,14 +207,16 @@ class Users extends \yii\db\ActiveRecord implements \yii\web\IdentityInterface
     public function rules()
     {
         return [
-            [['role', 'name', 'username', 'password'], 'required'],
+            [['role', 'name', 'email', 'password'], 'required'],
             [['role'], 'string'],
-            [['modified_at', 'created_at'], 'safe'],
-            [['name', 'username', 'password'], 'string', 'max' => 50],
+            //[['modified_at', 'created_at'], 'safe'],
+            [['name', 'email'], 'string', 'max' => 50],
+            [['password'], 'string', 'max' => 60],            
             [['phone'], 'string', 'max' => 15],
-            [['access_token'], 'string', 'max' => 64],
-            [['auth_key'], 'string', 'max' => 64],
-            [['username'], 'unique'],
+            //[['access_token'], 'string', 'max' => 64],
+            //[['token_timelife'], 'integer'],
+            [['email'], 'unique'],
+            [['email'], 'email'],
         ];
     }
 
@@ -107,13 +229,13 @@ class Users extends \yii\db\ActiveRecord implements \yii\web\IdentityInterface
             'id' => 'ID',
             'role' => 'Role',
             'name' => 'Name',
-            'username' => 'Username',
+            'email' => 'Email',
             'password' => 'Password',
             'phone' => 'Phone',
             'modified_at' => 'Modified At',
             'created_at' => 'Created At',
             'access_token' => 'Access Token',
-            'auth_key' => 'Auth Key',
+            'token_timelife' => 'Token Timelife',
         ];
     }
 

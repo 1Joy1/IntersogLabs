@@ -86,12 +86,35 @@ class CommonActiveController extends ActiveController
             'authMethods' => [
                 [
                     'class' => HttpBasicAuth::className(),
-                    'auth' => function ($username, $password) {
-                        return \app\models\Users::findOne([
-                            'username' => $username,
-                            'password' => $password,
-                        ]);
+                    'auth' => function ($email, $password) {
+                        if ($authUser = \app\models\Users::validateUser($email, $password)) {
+                            $authHeader = $authUser->access_token;
+                            $response = \Yii::$app->response;
+                            $response->getHeaders()->set('Autorization', 'Bearer '.$authHeader);
+                            return $authUser;
+                        }
                     }
+                                        
+                    //Тренировки и игры с кешированием
+                    
+                    /*'auth' => function ($email, $password) {                        
+                        
+                        $cache = \Yii::$app->cache;
+                        $options = [$email, $password];
+                        $key = $email . $password; //md5(serialize($options));
+                        //$cache->flush();
+                        if ($cache->get($key)) {
+                            $result = $cache->get($key);
+                            var_dump($result);
+                        } else {
+                            $result = \app\models\Users::findOne([
+                                'email' => $email,
+                                'password' => $password,
+                            ]);
+                            $cache->set($key, $result, 5);
+                        }
+                        return $result;                        
+                    }*/
                 ],
                 [
                     'class' => HttpBearerAuth::className(),

@@ -84,12 +84,12 @@ $config = [
                     'DELETE <id:\d+>/images/<image_id:\d+>' => 'delete-images',
                     ],
                 ],
-                ['class' => 'yii\rest\UrlRule', 'controller' => 'auth', 'extraPatterns' => [
-                    'POST logout' => 'logout',                    
+                ['class' => 'yii\rest\UrlRule', 'controller' => 'auth', 'extraPatterns' => [  
                     'POST reset' => 'reset-pass',
                     'PUT reset' => 'change-pass',
                     'HEAD reset' => 'check-code',
                     'GET reset' => 'not-allowed',
+                    'OPTIONS reset' => 'options-pass',
                    ], 'pluralize' => false, 'except' => ['index', 'create', 'options'], 
                 ],
                 //['class' => 'yii\rest\UrlRule', 'controller' => 'album-images'],

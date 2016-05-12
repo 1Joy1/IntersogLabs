@@ -13,7 +13,15 @@ class UsersController extends CommonActiveController
 
     public $searchAttr = 'UsersSearch';
     
-    public $searchModel = '\app\models\UsersSearch';
+    public $searchModel = 'app\models\UsersSearch';
+    
+    
+    public function isOwnerAccount()
+    {
+        if (\Yii::$app->user->identity->id === \Yii::$app->request->queryParams['id']) {
+            return true;
+        }            
+    }
     
     
     /**
@@ -270,15 +278,6 @@ class UsersController extends CommonActiveController
         return parent::actionUpdate();
     }
     
-    
-    
-    
-    public function isOwnerAccount()
-    {
-        if (\Yii::$app->user->identity->id === \Yii::$app->request->queryParams['id']) {
-            return true;
-        }            
-    }
     
     public function behaviors()
     {

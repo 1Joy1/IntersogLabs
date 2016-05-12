@@ -5,11 +5,18 @@ namespace app\controllers;
  
 use app\controllers\CommonActiveController;
 use yii\filters\AccessControl;
-use app\models\Albums;
-use app\models\AlbumImages;
 use yii\helpers\ArrayHelper;
+
+use app\models\Albums;
+use app\models\AlbumClients;
+use app\models\AlbumImages;
+
 use yii\web\NotFoundHttpException;
 use yii\web\MethodNotAllowedHttpException;
+use yii\web\BadRequestHttpException;
+
+use app\models\UploadForm;
+
 
  
 class AlbumsController extends CommonActiveController
@@ -19,7 +26,12 @@ class AlbumsController extends CommonActiveController
     
     public $searchAttr = 'AlbumsSearch';
     
-    public $searchModel = '\app\models\AlbumsSearch';
+    public $searchModel = 'app\models\AlbumsSearch';
+    
+    
+    public $linkedModelClass = '\app\models\AlbumImages';
+    public $linkedModelName  = 'Images';
+    public $uploadModelClass = '\app\models\UploadForm';
     
   
 
@@ -27,7 +39,13 @@ class AlbumsController extends CommonActiveController
     {
         if (\Yii::$app->user->identity->id === Albums::findOne(\Yii::$app->request->queryParams['id'])["users_id"]) {
             return true;
-        }            
+        }
+    }
+    
+    public function isAllowAlbum()
+    {
+        return AlbumClients::findOne(['albums_id' => \Yii::$app->request->queryParams['id'], 
+                                      'users_id' => \Yii::$app->user->identity->id]);
     }
 
 
@@ -324,11 +342,19 @@ class AlbumsController extends CommonActiveController
  
     public function actionIndexImages()
     {
-        if ($all_images = Albums::findOne(\Yii::$app->request->queryParams['id'])) {
+        $params = \Yii::$app->request->queryParams;
+        $allowParams = ['id'];
+        if (!empty($params)) {
+            foreach ($params as $key => $value) {
+                if (!in_array($key, $allowParams)) {
+                   throw new BadRequestHttpException('Bad Request');
+                }
+            }            
+        }
+        if ($all_images = Albums::findOne($params['id'])) {
             return $all_images -> albumImages;
         } else {  
-            throw new NotFoundHttpException($message = "Object not found: " 
-                                                        . \Yii::$app->request->queryParams['id']);  
+            throw new NotFoundHttpException($message = "Object not found: " . $params['id']);  
         }
     }
     
@@ -373,13 +399,20 @@ class AlbumsController extends CommonActiveController
  */
     
     public function actionViewImages()
-    {
-        if (($image = AlbumImages::findOne(\Yii::$app->request->queryParams['image_id'])) && 
-             $image['albums_id'] == \Yii::$app->request->queryParams['id']) {
+    { 
+        $params = \Yii::$app->request->queryParams;
+        $allowParams = ['image_id','id'];
+        if (!empty($params)) {
+            foreach ($params as $key => $value) {
+                if (!in_array($key, $allowParams)) {
+                   throw new BadRequestHttpException('Bad Request');
+                }
+            }            
+        }
+        if (($image = AlbumImages::findOne($params['image_id'])) && $image['albums_id'] == $params['id']) {
             return $image;
         } else {  
-            throw new NotFoundHttpException($message = "Object not found: " 
-                                                        . \Yii::$app->request->queryParams['image_id']);  
+            throw new NotFoundHttpException($message = "Object not found: " . $params['image_id']);  
         }
     }
     
@@ -423,14 +456,25 @@ class AlbumsController extends CommonActiveController
  *      "status": 401,
  *     }
  */    
-    public function actionCreateImages()
+   /* public function actionCreateImages()
     {
+        $params = \Yii::$app->request->queryParams;
+        $allowParams = ['id'];
+        if (!empty($params)) {
+            foreach ($params as $key => $value) {
+                if (!in_array($key, $allowParams)) {
+                   throw new BadRequestHttpException('Bad Request');
+                }
+            }            
+        }
         $image = new AlbumImages;
         $image->load(\Yii::$app->getRequest()->getBodyParams(), '');
         $image -> insert();
          \Yii::$app->getResponse()->setStatusCode(201);
         return $image;
-    }
+        
+        
+    }*/
     
  
  /**
@@ -475,10 +519,19 @@ class AlbumsController extends CommonActiveController
  */   
     public function actionUpdateImages()
     {
-       $image = AlbumImages::findOne(\Yii::$app->request->queryParams['image_id']);
-       $image->load(\Yii::$app->getRequest()->getBodyParams(), '');
-       $image -> update();
-       return $image;
+        $params = \Yii::$app->request->queryParams;
+        $allowParams = ['image_id','id'];
+        if (!empty($params)) {
+            foreach ($params as $key => $value) {
+                if (!in_array($key, $allowParams)) {
+                   throw new BadRequestHttpException('Bad Request');
+                }
+            }            
+        } 
+        $image = AlbumImages::findOne(\Yii::$app->request->queryParams['image_id']);
+        $image->load(\Yii::$app->getRequest()->getBodyParams(), '');
+        $image -> update();
+        return $image;
     }
         
 /**
@@ -514,6 +567,15 @@ class AlbumsController extends CommonActiveController
  */   
     public function actionDeleteImages()
     {
+        $params = \Yii::$app->request->queryParams;
+        $allowParams = ['image_id','id'];
+        if (!empty($params)) {
+            foreach ($params as $key => $value) {
+                if (!in_array($key, $allowParams)) {
+                   throw new BadRequestHttpException('Bad Request');
+                }
+            }            
+        }
         if (($image = AlbumImages::findOne(\Yii::$app->request->queryParams['image_id'])) && 
              $image['albums_id'] == \Yii::$app->request->queryParams['id']) {
             if ($image->delete() === false) {
@@ -528,6 +590,21 @@ class AlbumsController extends CommonActiveController
 
         
     }
+    
+    public function actions()
+    {
+        $actions = parent::actions();
+        $actions['create-images'] = [
+           // 'class' => 'yii\rest\CreateAction',
+            'class'=> 'app\controllers\CreateImageAction',
+            'modelClass' => $this->uploadModelClass,
+         //   'findModel' => [$this, 'findModelImages']
+            ];
+            return $actions;
+        
+    }
+    
+    
     
     public function actionNotAllowed()
     {
@@ -544,7 +621,22 @@ class AlbumsController extends CommonActiveController
             'only' => ['index', 'view', 'create', 'update', 'delete', 'index-images', 'view-images', 'create-images', 'update-images', 'delete-images'],
             'rules' => [
                 [
-                    'actions' => ['index-images', 'view-images', 'create-images', 'update-images', 'delete-images'],
+                    'actions' => ['index-images', 'view-images'],
+                    'allow' => true,
+                     // Admin allow on full index & photographer where his is author
+                     // The filter implementation is done in class AlbumsSearch
+                    'roles' => ['admin', 'photographer', 'client'],
+                    'matchCallback' => function ($rule, $action)
+                    {   //if(!$this -> isAdmin() && isset(\Yii::$app->request->queryParams["users_id"])){
+                        if ($this -> isAdmin() || $this -> isOwnerAlbum() || $this -> isAllowAlbum()) {
+                            
+                            return true;
+                        }
+                    }
+                ],
+                
+                [
+                    'actions' => ['create-images', 'update-images', 'delete-images'],
                     'allow' => true,
                      // Admin allow on full index & photographer where his is author
                      // The filter implementation is done in class AlbumsSearch
@@ -563,14 +655,15 @@ class AlbumsController extends CommonActiveController
                     'allow' => true,
                      // Admin allow on full index & photographer where his is author
                      // The filter implementation is done in class AlbumsSearch
-                    'roles' => ['admin', 'photographer'],
+                    'roles' => ['admin', 'photographer', 'client'],
                     'matchCallback' => function ($rule, $action)
-                    {   //if(!$this -> isAdmin() && isset(\Yii::$app->request->queryParams["users_id"])){
+                    {   
                         if (isset(\Yii::$app->request->queryParams["users_id"])){
                             if (!$this -> isAdmin() && \Yii::$app->request->queryParams["users_id"] != \Yii::$app->user->identity->id){
                                 return false;
                             }
                         }
+                        
                         return true;
                     }
                 ],
@@ -583,7 +676,7 @@ class AlbumsController extends CommonActiveController
                     // Admin full allow, other some allow.
                     'matchCallback' => function ($rule, $action)
                     {
-                        if ($this -> isAdmin() || $this -> isOwnerAlbum()) {
+                        if ($this -> isAdmin() || $this -> isOwnerAlbum() || $this -> isAllowAlbum()) {
                             
                             return true;
                         }

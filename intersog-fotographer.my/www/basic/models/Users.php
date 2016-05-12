@@ -75,8 +75,7 @@ class Users extends \yii\db\ActiveRecord implements \yii\web\IdentityInterface
     
     /**
     * 
-    */ 
-    //public static function resetPassword($user, $newPassword)
+    */
     public function resetPassword($newPassword)
     {
         $this->password = $newPassword;
@@ -146,12 +145,11 @@ class Users extends \yii\db\ActiveRecord implements \yii\web\IdentityInterface
     /**
      * 
      */    
-    public static function resetToken($authUser)
+    public function resetToken()
     {
-        //if ($authUser = static::findIdentityByAccessToken($token)) {
-            $authUser->access_token = '';
-            $authUser->token_timelife = 0;
-        if ($authUser->update()) {
+            $this->access_token = '';
+            $this->token_timelife = 0;
+        if ($this->update()) {
             return true;
         } else {
             //return false;
@@ -162,21 +160,22 @@ class Users extends \yii\db\ActiveRecord implements \yii\web\IdentityInterface
     
     
     /**
-     * 
-     */    
-    /* Реализуем IdentityInterface Аунтетификация пользователей */
+     * Реализуем IdentityInterface Аунтетификация пользователей 
+     */         
+    
     public static function findIdentity($id)
     {
         return static::findOne($id);
     }
 
+    
     public static function findIdentityByAccessToken($token, $type = null)
     {
         if ( $authUser = static::findOne(['access_token' => $token]) ) {
-            if ( (time() - $authUser['token_timelife']) < 6000 ) {
+            if ( (time() - $authUser['token_timelife']) < 24000 ) {
                 return $authUser;            
             } else {                
-                static::resetToken($authUser);
+                $authUser->resetToken();
             }
         } else {
             return false;
@@ -189,15 +188,18 @@ class Users extends \yii\db\ActiveRecord implements \yii\web\IdentityInterface
         return $this->id;
     }
 
+    
     public function getAuthKey()
     {
         return $this->auth_key;
     }
 
+    
     public function validateAuthKey($authKey)
     {
         return $this->auth_key === $authKey;
     }
+    
   /* Реализовали IdentityInterface Аунтетификация пользователей */
   
     
@@ -244,7 +246,7 @@ class Users extends \yii\db\ActiveRecord implements \yii\web\IdentityInterface
      */
     public function getAlbumClients()
     {
-        return $this->hasOne(AlbumClients::className(), ['users_id' => 'id']);
+        return $this->hasMany(AlbumClients::className(), ['users_id' => 'id']);
     }
 
     /**

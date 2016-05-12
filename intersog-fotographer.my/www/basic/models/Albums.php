@@ -47,7 +47,8 @@ class Albums extends \yii\db\ActiveRecord
             [['users_id'], 'compare', 'compareValue' => $this -> getCarrentUser() -> id, 'operator' => '==', 
               'when' => function() 
               { 
-                return Yii::$app->user->identity->role != 'admin'; 
+                //return Yii::$app->user->identity->role != 'admin';
+                return $this -> getCarrentUser() -> role != 'admin';
               }
             ],
             [['users_id'], 'default', 'value' => Yii::$app->user->identity->id],

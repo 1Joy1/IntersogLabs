@@ -5,15 +5,13 @@ namespace app\controllers;
  
 use yii\rest\Controller;
 use yii\rest\ActiveController;
-//use yii\filters\AccessControl;
-//use app\models\Albums;
-//use app\models\AlbumImages;
-//use yii\helpers\ArrayHelper;
+
 use yii\web\NotFoundHttpException;
 use yii\web\ServerErrorHttpException;
 use yii\web\BadRequestHttpException;
 use yii\web\MethodNotAllowedHttpException;
 use yii\web\TooManyRequestsHttpException;
+
 use app\models\Users;
 
  
@@ -23,23 +21,9 @@ class AuthController extends ActiveController
     public $modelClass = 'app\models\Auth';
     
     
-  /*  public function actions()
-    {
-        $actions = parent::actions();
-        $actions ['options'] = [
-            'class' => 'yii\rest\OptionsAction',
-            'collectionOptions' => [''],
-            ];
-        return $actions;
-        throw new MethodNotAllowedHttpException;
-    }
-    
-    public function actionOptions()
-    {
-        var_dump ("actionChangePass");
-        
-    }*/
-    
+    /**
+     * Заглушка для несуществующих действий
+     */
     public function actionNotAllowed()
     {
         throw new MethodNotAllowedHttpException("This Method Not Allowed");
@@ -47,8 +31,7 @@ class AuthController extends ActiveController
     
     
     /**
-     * Метод генерации кода сброса пароля.
-     * Вопросы, как правильно вызывать методы модели, через статик или создавая новый объект.
+     * Метод генерации кода сброса пароля и отправки мыла.
      */
     public function actionResetPass()
     {
@@ -66,9 +49,9 @@ class AuthController extends ActiveController
             throw new NotFoundHttpException('This email not registered in system.', 404);
         }        
         
-        if ($validCode = \app\models\Auth::find()->where(['user_id' => $user['id'], 'used' => false])
-                                               ->andWhere(['>', 'valid_time', time()])
-                                               ->all()) {
+        if ($newAuthValidCode = \app\models\Auth::find()->where(['user_id' => $user['id'], 'used' => false])
+                                                        ->andWhere(['>', 'valid_time', time()])
+                                                        ->all()) {
            throw new TooManyRequestsHttpException('You can not reset the password so often.', 429);
         }
         
@@ -79,21 +62,25 @@ class AuthController extends ActiveController
            
         }
 
-            
+        $realValidTime = \Yii::$app->formatter->asDatetime($generateResetCode['valid_time']) . ' GMT';
+        
         if ( !$message = \Yii::$app->mailer->compose()
-                                          ->setFrom('reset_password@intersog-fotographer.my')
-                                          ->setTo($email)
-                                          ->setSubject('Reset your password')
-                                          ->setTextBody('Reset your password.' . PHP_EOL 
-                                                      . 'For reset your password, use this code:' . PHP_EOL 
-                                                      . $generateResetCode['code'])
-                                          ->send()) {
+                                           ->setFrom('reset_password@intersog-fotographer.my')
+                                           ->setTo($email)
+                                           ->setSubject('Reset your password')
+                                           ->setTextBody('Reset your password.' . PHP_EOL 
+                                                       . 'For reset your password, use this code:' . PHP_EOL 
+                                                       . $generateResetCode['code'] . PHP_EOL
+                                                       . 'Valid to' . $realValidTime)
+                                           ->send()) {
             throw new ServerErrorHttpException('Email not sending. Contact the administrator');
         }
           
         \Yii::$app->getResponse()->setStatusCode(201);
         
-        return 'Reset code, sending on your email';
+        return ['message'=>'Reset code, sending on your email',
+                'email'=>$email,
+                'valid_to'=> $realValidTime,];
                
     }
     
@@ -115,42 +102,40 @@ class AuthController extends ActiveController
         }
         
          
-        if (!$validCode = \app\models\Auth::find()->where(['code' => $code, 'used' => false])
+        if (!$newAuth = \app\models\Auth::find()->where(['code' => $code, 'used' => false])
                                                    ->andWhere(['>', 'valid_time', time()])
                                                    ->one()) {
            throw new NotFoundHttpException('Reset code not valid', 404);
         }
         
-        if (!$user = \app\models\Users::findOne(['id' => $validCode['user_id']])) {
-            throw new NotFoundHttpException('User not faund', 404);
+        if (!$user = \app\models\Users::findOne(['id' => $newAuth['user_id']])) {
+            throw new NotFoundHttpException('Reset code not valid because user not faund', 404);
         }        
         
         //Обратиться в модель Юзер и изменить там пародь 
-        // Можно вызвать первым вариантом, а можно и вторым.... КАК ПРАВИЛЬНО И ПОЧЕМУ????
-        
         if ( !$resetPassword = $user -> resetPassword($newPassword)) {
         //if ( !$resetPassword = \app\models\Users::resetPassword($user, $newPassword)) {
            throw new ServerErrorHttpException("Тут что то поломалось!!! Срочно бежим к админу с криками <Не обновляется пароль>.");
            
         }
         
-        //Обратиться в модель Аутс и изменить там юзед на тру        
-        if ( !$setCodeUsed = \app\models\Auth::setCodeUsed($validCode)) {
+        //Обратиться в модель Auth и изменить там used на true 
+        if ( !$setCodeUsed = $newAuth -> setCodeUsed()) {
            throw new ServerErrorHttpException("Тут что то поломалось!!! Срочно бежим к админу с криками <Не сбрасывается used>.");
            
         }
         
         //Сообщить что пароль поменян и выдать токен.           
-        if ($authUser = \app\models\Users::validateUser($user['email'], $newPassword)) {
+        if (!$authUser = \app\models\Users::validateUser($user['email'], $newPassword)) {
+            throw new ServerErrorHttpException("Тут что то поломалось!!! Срочно бежим к админу с криками <Не принимается новый пароль>.");
+        } else {
             $authHeader = $authUser->access_token;
             $response = \Yii::$app->response;
             $response->getHeaders()->set('Autorization', 'Bearer '.$authHeader);
             \Yii::$app->getResponse()->setStatusCode(201);
             //return $authUser;
-            return 'Password changed.';
+            return ['message'=>'Password changed.'];
         }
-        
-        return false;
         
     }
     
@@ -169,28 +154,34 @@ class AuthController extends ActiveController
         $response = \Yii::$app->response;
         $response->getHeaders()->set('resetCode code', $code);
         
-        if (!$validCode = \app\models\Auth::find()->where(['code' => $code, 'used' => false])
+        if (!$newAuth = \app\models\Auth::find()->where(['code' => $code, 'used' => false])
                                                    ->andWhere(['>', 'valid_time', time()])
                                                    ->one()) {
            throw new NotFoundHttpException('Reset code not valid', 404);
         }
         
-        $response->getHeaders()->set('resetCode used', $validCode['used']);
-        $response->getHeaders()->set('resetCode valid-time', $validCode['valid_time'] - time());
+        $response->getHeaders()->set('resetCode used', $newAuth['used']);
+        $response->getHeaders()->set('resetCode valid-time', $newAuth['valid_time'] - time());
         
-        if (!$user = \app\models\Users::findOne(['id' => $validCode['user_id']])) {
-            throw new NotFoundHttpException('User not faund', 404);
+        if (!$user = \app\models\Users::findOne(['id' => $newAuth['user_id']])) {
+            throw new NotFoundHttpException('Reset code not valid because user not faund', 404);
         } 
         
     }
-
-
-    public function actionLogout()
-    {
-        var_dump (" actionLogout");
-        $test = \Yii::$app->request->getHeaders()['authorization'];
-        var_dump($test);
+    
+    
+    /**
+    * Переопределение метода OPTIONS.
+    * 
+    */
+    public function actions() 
+    {   
+        $actions = parent::actions();
         
-        
+        $actions ['options-pass'] = [
+            'class' => 'yii\rest\OptionsAction',
+            'collectionOptions' => ['POST', 'PUT', 'HEAD', 'OPTIONS'],
+            ];
+        return $actions;
     }
 }

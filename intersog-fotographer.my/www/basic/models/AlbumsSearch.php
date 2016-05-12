@@ -41,7 +41,7 @@ class AlbumsSearch extends Albums
      */
     public function search($params)
     {
-        $query = Albums::find();
+        $query = Albums::find();              
 
         // add conditions that should always apply here
 
@@ -63,18 +63,32 @@ class AlbumsSearch extends Albums
             'modified_at' => $this->modified_at,
             'created_at' => $this->created_at,
         ]);
-        if(\Yii::$app->user->identity->role === 'admin'){
+        
+        $userIndentity = \Yii::$app->user->identity;
+        
+        if($userIndentity->role === 'admin'){
             $query->andFilterWhere(['like', 'users_id', $this->users_id])
                 ->andFilterWhere(['like', 'name', $this->name])
                 ->andFilterWhere(['like', 'active', $this->active]);
         }
-        if (\Yii::$app->user->identity->role === 'photographer'){
+        if ($userIndentity->role === 'photographer'){
             $query->andFilterWhere(['like', 'users_id', (string)\Yii::$app->user->identity->id])
             ->andFilterWhere(['like', 'name', $this->name])
             ->andFilterWhere(['like', 'active', $this->active]);
         }
-        
+        if ($userIndentity->role === 'client'){
+            $albumClients = $userIndentity->albumClients;
+            $alowAlboms = array();
+            foreach ($albumClients as $album) {
+                array_push($alowAlboms, $album['albums_id']);
+            }
+            $query->andFilterWhere(['like', 'users_id', $this->users_id])
+            ->andFilterWhere(['in', 'id', $alowAlboms])
+            ->andFilterWhere(['like', 'name', $this->name])
+            ->andFilterWhere(['like', 'active', $this->active]);
+        }        
 
         return $dataProvider;
     }
+    
 }

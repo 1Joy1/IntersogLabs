@@ -17,26 +17,65 @@ class UploadForm extends Model
     
     
     /**
-     * @var UploadedFile
+     * @var UploadedDir
      */
     public $uploadDir = '../upload/';
     
     
     
+    /**
+     * @var UploadedFileNewName
+     */
+    public $UploadedFileNewName;
     
+    
+    /**
+     * @inheritdoc
+     */
     public function rules()
     {
         return [
+
             [['imageFile'], 'image', 'skipOnEmpty' => false],
             
         ];
     }
     
     
-    public function upload()
+    /**
+     * @inheritdoc
+     */
+    public function createDir($albumDir)
+    {
+        if (!file_exists($this->uploadDir . $albumDir)) {
+           $dir = mkdir($this->uploadDir . $albumDir);
+           return $dir;
+        }
+        return true;
+    }
+    
+    
+    
+    /**
+     * @inheritdoc
+     */
+    public function upload($albumDir)
     {
         if ($this->validate()) {
-            $this->imageFile->saveAs($this->uploadDir . $this->imageFile->baseName . '.' . $this->imageFile->extension);
+            
+            $this->UploadedFileNewName = $this->imageFile->baseName . '.' . $this->imageFile->extension;
+            
+            if (file_exists($this->uploadDir . $albumDir . $this->UploadedFileNewName)) {
+                
+                $i = 1; //digital prefix for name file
+                do {
+                    $this->UploadedFileNewName = $this->imageFile->baseName . $i . '.' . $this->imageFile->extension;
+                    $i++;
+                } while (file_exists($this->uploadDir . $albumDir . $this->UploadedFileNewName));
+            }
+                
+            
+            $this->imageFile->saveAs($this->uploadDir . $albumDir . $this->UploadedFileNewName);
             return true;
         } else {
             return false;

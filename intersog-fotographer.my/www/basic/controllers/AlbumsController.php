@@ -10,12 +10,14 @@ use yii\helpers\ArrayHelper;
 use app\models\Albums;
 use app\models\AlbumClients;
 use app\models\AlbumImages;
+use app\models\UploadForm;
+
+use yii\web\UploadedFile;
 
 use yii\web\NotFoundHttpException;
 use yii\web\MethodNotAllowedHttpException;
 use yii\web\BadRequestHttpException;
-
-use app\models\UploadForm;
+use yii\web\ServerErrorHttpException;
 
 
  
@@ -27,11 +29,6 @@ class AlbumsController extends CommonActiveController
     public $searchAttr = 'AlbumsSearch';
     
     public $searchModel = 'app\models\AlbumsSearch';
-    
-    
-    public $linkedModelClass = '\app\models\AlbumImages';
-    public $linkedModelName  = 'Images';
-    public $uploadModelClass = '\app\models\UploadForm';
     
   
 
@@ -424,15 +421,15 @@ class AlbumsController extends CommonActiveController
  *
  * @apiDescription Create New Images.
 
- * @apiParam {String} image URL image.
+ * @apiParam {form-data} UploadForm[imageFile] image file.
  *
  * @apiExample {http} Example usage:
  *     POST: http://localhost/albums/1/images
  *
- * @apiParamExample {json} Request-Example:
- *            { "image" : "http://tut_kakoito_URL_7" } 
+ * @apiParamExample {form-data} Request-Example:
+ *            { "UploadForm[imageFile]" : "../pic.jpg" } 
  *
- * @apiSuccess (Success 200) {String} JSONobjects Image data object in the format JSON.
+ * @apiSuccess (Success 201) {String} JSONobjects Image data object in the format JSON.
  *
  * @apiSuccessExample Success-Response:
  *     HTTP/1.1 201 Created
@@ -444,8 +441,7 @@ class AlbumsController extends CommonActiveController
  *
  * @apiError Unauthorized The <code>401</code> of the User not authorized.
  * @apiError Forbidden The <code>403</code> You are not allowed to perform this action.
- * @apiError NotFound The <code>404</code> of the Image was not found.
- * @apiError NotFound The <code>422</code> Data validation Failed.    
+ * @apiError NotFound The <code>404</code> of the Image was not found.    
  *
  * @apiErrorExample Error-Response:
  *     HTTP/1.1 401 Unauthorized
@@ -456,25 +452,54 @@ class AlbumsController extends CommonActiveController
  *      "status": 401,
  *     }
  */    
-   /* public function actionCreateImages()
+    
+    
+    public function actionCreateImages()
     {
         $params = \Yii::$app->request->queryParams;
         $allowParams = ['id'];
         if (!empty($params)) {
             foreach ($params as $key => $value) {
                 if (!in_array($key, $allowParams)) {
-                   throw new BadRequestHttpException('Bad Request');
+                   throw new BadRequestHttpException('Bad Request. Not supported parametrs');
                 }
             }            
         }
-        $image = new AlbumImages;
-        $image->load(\Yii::$app->getRequest()->getBodyParams(), '');
-        $image -> insert();
-         \Yii::$app->getResponse()->setStatusCode(201);
-        return $image;
+        
+        $model = new UploadForm();
+            
+        if (!$model->imageFile = UploadedFile::getInstance($model, 'imageFile')){
+            throw new BadRequestHttpException('Bad Request. Not load file');
+        }
+        
+        if (!$model->createDir('albom_id_' . $params['id'] . '/')) {
+            throw new ServerErrorHttpException('File not save. Not create album dir');
+        }
+        
+
+        if (!$model->upload('albom_id_' . $params['id'] . '/')) {
+            throw new ServerErrorHttpException('File not save. File format is not image');
+        }
+        
+        // file is uploaded successfully
+        $image = new AlbumImages();
+        $image->image = $model->uploadDir . 'albom_id_' . $params['id'] . '/' . $model->UploadedFileNewName;
+            
+        if (!$image->insert()) {
+            throw new ServerErrorHttpException('Failed to action for unknown reason.');
+        }
+        
+        \Yii::$app->getResponse()->setStatusCode(201);
         
         
-    }*/
+        return $image;        
+        
+        
+    }
+    
+    
+    
+    
     
  
  /**
@@ -591,21 +616,7 @@ class AlbumsController extends CommonActiveController
         
     }
     
-    public function actions()
-    {
-        $actions = parent::actions();
-        $actions['create-images'] = [
-           // 'class' => 'yii\rest\CreateAction',
-            'class'=> 'app\controllers\CreateImageAction',
-            'modelClass' => $this->uploadModelClass,
-         //   'findModel' => [$this, 'findModelImages']
-            ];
-            return $actions;
-        
-    }
-    
-    
-    
+
     public function actionNotAllowed()
     {
         throw new MethodNotAllowedHttpException("This Method Not Allowed");

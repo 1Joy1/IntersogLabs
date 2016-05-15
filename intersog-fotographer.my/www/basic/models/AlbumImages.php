@@ -3,6 +3,7 @@
 namespace app\models;
 
 use Yii;
+use app\models\ResizedPhotos;
 
 /**
  * This is the model class for table "album_images".
@@ -84,4 +85,37 @@ class AlbumImages extends \yii\db\ActiveRecord
     {
         return $this->hasOne(OrderImages::className(), ['album_images_id' => 'id']);
     }
+
+    /**
+     * @return \yii\db\ActiveQuery
+     */    
+    public function getResizedPhotos()
+    {
+        return $this->hasMany(ResizedPhotos::className(), ['image_id' => 'id']);
+    }
+        
+    
+    /**
+     * @return Bool
+     */ 
+    public function afterSave($insert, $changedAttributes)
+    {
+        parent::afterSave($insert,$changedAttributes);
+        
+        for ($i=0; $i++<2;){
+            
+            $resizedPhotos = new ResizedPhotos();
+            $resizedPhotos->image_id = $this->id;
+            $resizedPhotos->status = 'new';
+            $resizedPhotos->comment = ($i == 1 ? 'Width size 100px' : 'Width size 400px');
+            $resizedPhotos->size = ($i == 1 ? '100px' : '400px');
+               
+            if (!$resizedPhotos->save()) {
+                return false;
+            }
+            
+        }  
+        return true;
+    }
+    
 }
